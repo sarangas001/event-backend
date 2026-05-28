@@ -21,6 +21,22 @@ spec:
           value: "3001"
         - name: MONGIDB_URI
           value: "mongodb+srv://saranga:saranga@cluster0.u9gdwrb.mongodb.net/event_registration"
+        - name: JWT_SECRET
+          value: "SECRET@123"
+        - name: NODE_ENV
+          value: "development"
+        - name: SMTP_USER
+          value: "911eab001@smtp-brevo.com"
+        - name: SMTP_PASS
+          value: "M7a04Up6t3DTs28v"
+        - name: SENDER_EMAIL
+          value: "sarangasama@gmail.com"
+        - name: CLOUD_NAME
+          value: "daxdprtg"
+        - name: CLOUD_API_KEY
+          value: "536637513617862"
+        - name: CLOUD_API_SECRET
+          value: "OC0wbmxROElLVTFqOG9WZzlMc3ZMcW9FQThR"
 
         ports:
         - containerPort: 3001

@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
 
 env:
-    MONGIDB_URI=${{ secrets.MONGIDB_URI }}
-    JWT_SECRET=${{ secrets.JWT_SECRET }}
-    SMTP_USER=${{ secrets.SMTP_USER }}
-    SMTP_PASS=${{ secrets.SMTP_PASS }}
-    SENDER_EMAIL=${{ secrets.SENDER_EMAIL }}
-    CLOUD_NAME=${{ secrets.CLOUD_NAME }}
-    CLOUD_API_KEY=${{ secrets.CLOUD_API_KEY }}
-    CLOUD_API_SECRET=${{ secrets.CLOUD_API_SECRET }}
+    MONGIDB_URI: ${{ secrets.MONGIDB_URI }}
+    JWT_SECRET: ${{ secrets.JWT_SECRET }}
+    SMTP_USER: ${{ secrets.SMTP_USER }}
+    SMTP_PASS: ${{ secrets.SMTP_PASS }}
+    SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+    CLOUD_NAME: ${{ secrets.CLOUD_NAME }}
+    CLOUD_API_KEY: ${{ secrets.CLOUD_API_KEY }}
+    CLOUD_API_SECRET: ${{ secrets.CLOUD_API_SECRET }}
 
 jobs:
   build-test:

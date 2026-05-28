@@ -9,7 +9,6 @@ const port = process.env.PORT || 3001;
 
 (async () => {
     await connect();
-    await seedDefaults();
 
     const server = app.listen(port, host, () => {
         console.log(`Connected Succsfully !! port : ${server.address().port}`)

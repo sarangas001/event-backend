@@ -24,7 +24,7 @@ spec:
         - name: JWT_SECRET
           value: "SECRET@123"
         - name: NODE_ENV
-          value: "development"
+          value: "production"
         - name: SMTP_USER
           value: "911eab001@smtp-brevo.com"
         - name: SMTP_PASS

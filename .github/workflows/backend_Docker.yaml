@@ -2,10 +2,10 @@ name: Hello Backend App to Docker
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'backend/**'
-      - '.github/workflows/backend_Docker.yaml'
+  # push:
+  #   paths:
+  #     - 'backend/**'
+  #     - '.github/workflows/backend_Docker.yaml'
 
 jobs:
   build-test:

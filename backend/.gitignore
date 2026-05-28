@@ -1,0 +1,13 @@
+# Dependencies
+vendor/
+composer.lock
+
+# Environment files
+.env
+
+# Logs
+*.log
+
+# Cache
+cache/
+temp/

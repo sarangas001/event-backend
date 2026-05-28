@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "jest --runInBand --verbose",
+    "test:workflow": "jest tests/workflow --runInBand --verbose",
     "dev": "nodemon server.js"
   },
   "author": "",

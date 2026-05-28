@@ -23,8 +23,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/', (req, res) => {
-    res.send({'message': 'Hello World!', 'status': 'success', port: process.env.PORT});
+// Basic root health check - keep as a GET so it doesn't preempt API routers
+app.get('/', (req, res) => {
+    res.send({ message: 'Hello World!', status: 'success', port: process.env.PORT });
 });
 
 app.use('/api/auth', authRouter)

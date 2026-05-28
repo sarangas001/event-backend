@@ -4,7 +4,7 @@ jest.spyOn(console, 'log').mockImplementation((...args) => {
   if (args[0] && typeof args[0] === 'string' && args[0].includes('[dotenv')) {
     return; // suppress dotenv logs
   }
-  console.info(...args); // safer than process.stdout.write
+  console.info(...args);
 });
 
 afterEach(() => {

@@ -30,7 +30,7 @@ kind: Service
 metadata:
   name: backend-event
 spec:
-  type: loadBalancer
+  type: LoadBalancer
   selector:
     app: backend-event
   ports:

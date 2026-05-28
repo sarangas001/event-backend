@@ -84,7 +84,7 @@ jobs:
             
             - name: Create/Update Secrets
               run: |
-                kubectl apply -f k8s/secret.yaml
+                kubectl apply -f k8s/secrets.yaml
 
             - name: Deploy to AWS (Kubernetes)
               run: kubectl apply -f k8s/app.yaml

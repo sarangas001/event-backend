@@ -81,6 +81,10 @@ jobs:
             
             - name: Verify connection
               run: kubectl get nodes
+            
+            - name: Create/Update Secrets
+              run: |
+                kubectl apply -f k8s/secret.yaml
 
             - name: Deploy to AWS (Kubernetes)
               run: kubectl apply -f k8s/app.yaml

@@ -5,7 +5,7 @@ on:
   push:
     paths:
       - 'backend/**'
-      - '.github/workflow/backend_Docker.yaml'
+      - '.github/workflows/backend_Docker.yaml'
 
 jobs:
   build-test:

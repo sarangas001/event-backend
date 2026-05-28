@@ -1,5 +1,18 @@
-/node_modules
-/dist
-/.env
-/coverage
-/.vscode
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+
+# Dependencies
+node_modules/
+vendor/

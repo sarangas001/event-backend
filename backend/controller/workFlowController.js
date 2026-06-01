@@ -56,6 +56,7 @@ const formatEventDetail = (event) => ({
   publicVisible: Boolean(event.publicVisible),
   approvedAt: event.approvedAt || null,
   rejectedAt: event.rejectedAt || null,
+  createdAt: event.createdAt || null,
 });
 
 const formatOrganizationDetail = (organization) => ({

@@ -1,34 +1,28 @@
-const bcrypt = require('bcryptjs');
-const validator = require('validator');
-
 const Organization = require('../models/Organization');
 const Project = require('../models/Project');
 const User = require('../models/User');
 
 const createProject = async (req, res) => {
   try {
-    const {
-      organizationId,
-      projectName,
-      description,
-      presidentName,
-      presidentEmail,
-      presidentPassword,
-    } = req.body;
+    const { organizationId, projectName, description } = req.body;
 
     const currentUser = await User.findById(req.body.userId);
     if (!currentUser) {
       return res.send({ success: false, message: 'Invalid user' });
     }
 
-    if (!['advisor', 'dean'].includes(currentUser.adminProfile?.role)) {
-      return res.send({ success: false, message: 'Only an Advisor or Dean can create a project' });
+    if (currentUser.adminProfile?.role !== 'president') {
+      return res.send({ success: false, message: 'Only a President can create a project' });
     }
 
-    const resolvedOrganizationId = organizationId || currentUser.adminProfile?.organization;
+    const resolvedOrganizationId = currentUser.adminProfile?.organization || organizationId;
 
     if (!resolvedOrganizationId) {
       return res.send({ success: false, message: 'Missing Organization' });
+    }
+
+    if (organizationId && String(organizationId) !== String(currentUser.adminProfile?.organization)) {
+      return res.send({ success: false, message: 'You can only create a project for your assigned organization' });
     }
 
     if (!projectName?.trim()) {
@@ -39,50 +33,14 @@ const createProject = async (req, res) => {
       return res.send({ success: false, message: 'Missing Description' });
     }
 
-    if (!presidentName?.trim()) {
-      return res.send({ success: false, message: 'Missing President Name' });
-    }
-
-    if (!presidentEmail || !validator.isEmail(presidentEmail)) {
-      return res.send({ success: false, message: 'Invalid President Email' });
-    }
-
-    if (!presidentPassword) {
-      return res.send({ success: false, message: 'Missing President Password' });
-    }
-
     const organization = await Organization.findById(resolvedOrganizationId).populate('faculty');
     if (!organization) {
       return res.send({ success: false, message: 'Organization not found' });
     }
 
-    const isAuthority =
-      (organization.organizationType === 'noFaculty' && String(organization.advisor) === String(currentUser._id)) ||
-      (organization.organizationType === 'withFaculty' && String(organization.authorityRef) === String(currentUser._id));
-
-    if (!isAuthority) {
-      return res.send({ success: false, message: 'You are not the responsible authority for this organization' });
+    if (String(currentUser.adminProfile?.organization) !== String(organization._id)) {
+      return res.send({ success: false, message: 'You are not assigned to this organization' });
     }
-
-    const existingPresident = await User.findOne({ email: presidentEmail.trim().toLowerCase() });
-    if (existingPresident) {
-      return res.send({ success: false, message: 'President email already exists' });
-    }
-
-    const hashedPassword = await bcrypt.hash(presidentPassword, 10);
-
-    const president = new User({
-      fullName: presidentName.trim(),
-      email: presidentEmail.trim().toLowerCase(),
-      password: hashedPassword,
-      adminProfile: {
-        role: 'president',
-        organization: organization._id,
-        faculty: organization.faculty || null,
-      },
-    });
-
-    const savedPresident = await president.save();
 
     const project = new Project({
       projectName: projectName.trim(),
@@ -90,7 +48,7 @@ const createProject = async (req, res) => {
       organization: organization._id,
       organizationAuthorityType: organization.organizationType === 'withFaculty' ? 'dean' : 'advisor',
       organizationAuthorityRef: organization.authorityRef || organization.advisor,
-      president: savedPresident._id,
+      president: currentUser._id,
     });
 
     const savedProject = await project.save();
@@ -104,12 +62,11 @@ const createProject = async (req, res) => {
       message: {
         project: savedProject,
         president: {
-          id: savedPresident._id,
-          fullName: savedPresident.fullName,
-          email: savedPresident.email,
+          id: currentUser._id,
+          fullName: currentUser.fullName,
+          email: currentUser.email,
           role: 'president',
         },
-        temporaryPassword: presidentPassword,
       },
     });
   } catch (error) {

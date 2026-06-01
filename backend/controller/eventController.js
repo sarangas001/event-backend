@@ -1,4 +1,5 @@
 const Event = require('../models/Event');
+const Faculty = require('../models/Faculty');
 const Project = require('../models/Project');
 const Organization = require('../models/Organization');
 const Venue = require('../models/Venue');
@@ -93,6 +94,8 @@ const formatEventForFrontend = (event, workflow = null) => ({
   coverImageUrl: event.coverImageUrl || '',
   classRoomName: event.classroomName || '',
   classroomName: event.classroomName || '',
+  facultyId: event.faculty ? String(event.faculty._id || event.faculty) : '',
+  facultyName: event.faculty?.facultyName || '',
   isApproved: event.status === 'approved',
   status: event.status || 'pending',
   approvalStage: event.approvalStage || '',
@@ -187,6 +190,7 @@ const createEvent = async (req, res) => {
       endTime,
       expectedAttendees,
       venueId,
+      facultyId,
       venueName,
       coverImageUrl,
       classroomName,
@@ -210,6 +214,33 @@ const createEvent = async (req, res) => {
       return res.send({ success: false, message: 'Venue not found' });
     }
 
+    const requiresFacultySelection = Boolean(
+      venue && (
+        String(venue.ownerType || '').toLowerCase() === 'dean' ||
+        String(venue.type || '').toLowerCase().includes('faculty')
+      )
+    );
+
+    let selectedFaculty = null;
+    if (requiresFacultySelection) {
+      if (!facultyId) {
+        return res.send({ success: false, message: 'Faculty is required for this venue' });
+      }
+
+      selectedFaculty = await Faculty.findById(facultyId);
+      if (!selectedFaculty) {
+        return res.send({ success: false, message: 'Selected faculty not found' });
+      }
+
+      if (venue?.faculty && String(venue.faculty) !== String(selectedFaculty._id)) {
+        return res.send({ success: false, message: 'Selected faculty does not match venue faculty' });
+      }
+
+      if (!classroomName?.trim()) {
+        return res.send({ success: false, message: 'Classroom name is required for this venue' });
+      }
+    }
+
     const eventVenueName = venue?.venueName || venueName.trim();
     const requiresSecurity = afterSixPm(startTime, endTime);
     const initialRole = project.organizationAuthorityType === 'dean' ? 'dean' : 'advisor';
@@ -224,11 +255,12 @@ const createEvent = async (req, res) => {
       expectedAttendees: Number(expectedAttendees),
       venueName: eventVenueName,
       venue: venue?._id || null,
+      faculty: selectedFaculty?._id || null,
       organization: project.organization._id,
       project: project._id,
       president: user._id,
       coverImageUrl: coverImageUrl || '',
-      classroomName: classroomName || '',
+      classroomName: classroomName?.trim() || '',
       status: 'pending',
       approvalStage: 'organizationAuthority',
       approvalRole: initialRole,
@@ -346,7 +378,7 @@ const updateReturnedEvent = async (req, res) => {
       return res.send({ success: false, message: 'Only the president can resubmit the event' });
     }
 
-    const { eventId, title, description, category, eventDate, startTime, endTime, expectedAttendees, venueId, venueName, coverImageUrl, classroomName } = req.body;
+    const { eventId, title, description, category, eventDate, startTime, endTime, expectedAttendees, venueId, facultyId, venueName, coverImageUrl, classroomName } = req.body;
     const eventQuery = Event.findById(eventId);
     const event = typeof eventQuery.populate === 'function'
       ? await eventQuery
@@ -359,6 +391,34 @@ const updateReturnedEvent = async (req, res) => {
     let workflow = await WorkFlow.findOne({ event: event._id });
 
     const venue = venueId ? await Venue.findById(venueId) : await Venue.findOne({ venueName });
+
+    const requiresFacultySelection = Boolean(
+      venue && (
+        String(venue.ownerType || '').toLowerCase() === 'dean' ||
+        String(venue.type || '').toLowerCase().includes('faculty')
+      )
+    );
+
+    let selectedFaculty = event.faculty || null;
+    if (requiresFacultySelection) {
+      if (!facultyId) {
+        return res.send({ success: false, message: 'Faculty is required for this venue' });
+      }
+
+      selectedFaculty = await Faculty.findById(facultyId);
+      if (!selectedFaculty) {
+        return res.send({ success: false, message: 'Selected faculty not found' });
+      }
+
+      if (venue?.faculty && String(venue.faculty) !== String(selectedFaculty._id)) {
+        return res.send({ success: false, message: 'Selected faculty does not match venue faculty' });
+      }
+
+      if (!classroomName?.trim()) {
+        return res.send({ success: false, message: 'Classroom name is required for this venue' });
+      }
+    }
+
     const eventVenueName = venue?.venueName || venueName || event.venueName;
     const requiresSecurity = afterSixPm(startTime || event.startTime, endTime || event.endTime);
     const project = await Project.findById(event.project);
@@ -373,8 +433,9 @@ const updateReturnedEvent = async (req, res) => {
     event.expectedAttendees = Number(expectedAttendees || event.expectedAttendees);
     event.venueName = eventVenueName;
     event.venue = venue?._id || event.venue;
+    event.faculty = selectedFaculty?._id || null;
     event.coverImageUrl = coverImageUrl || event.coverImageUrl;
-    event.classroomName = classroomName ?? event.classroomName;
+    event.classroomName = classroomName !== undefined ? String(classroomName).trim() : event.classroomName;
     event.status = 'pending';
     event.approvalStage = 'organizationAuthority';
     event.approvalRole = initialRole;

@@ -8,22 +8,29 @@ const User = require('../models/User');
 
 const allowedSingleInstanceRoles = ['sportsDirector', 'chairmanOfArt', 'proctor', 'viceChancellor'];
 
-const isWelfareOfficer = async (userId) => {
+const hasAnyRole = async (userId, allowedRoles) => {
   const user = await User.findById(userId);
-  return Boolean(user && user.adminProfile?.role === 'welfareOfficer');
+  return Boolean(user && allowedRoles.includes(user.adminProfile?.role));
 };
 
-const requireWelfareOfficer = async (req, res) => {
+const requireRoles = async (req, res, allowedRoles, deniedMessage) => {
   const userId = req.body?.userId;
-  const allowed = await isWelfareOfficer(userId);
+  const allowed = await hasAnyRole(userId, allowedRoles);
 
   if (!allowed) {
-    res.send({ success: false, message: 'Only the Welfare Officer can perform this action' });
+    res.send({ success: false, message: deniedMessage });
     return false;
   }
 
   return true;
 };
+
+const requireWelfareOfficer = async (req, res) => {
+  return requireRoles(req, res, ['welfareOfficer'], 'Only the Welfare Officer can perform this action');
+};
+
+const requireDean = async (req, res) =>
+  requireRoles(req, res, ['dean'], 'Only the Dean can perform this action');
 
 const parseDepartments = (departments) => {
   if (Array.isArray(departments)) {
@@ -499,6 +506,78 @@ const getVenues = async (req, res) => {
   }
 };
 
+const createPresidentRegistration = async (req, res) => {
+  try {
+    if (!(await requireDean(req, res))) {
+      return;
+    }
+
+    const { organizationId, presidentName, presidentEmail, presidentPassword } = req.body;
+
+    if (!organizationId) {
+      return res.send({ success: false, message: 'Missing Organization' });
+    }
+
+    if (!presidentName?.trim()) {
+      return res.send({ success: false, message: 'Missing President Name' });
+    }
+
+    if (!presidentEmail || !validator.isEmail(presidentEmail)) {
+      return res.send({ success: false, message: 'Invalid President Email' });
+    }
+
+    if (!presidentPassword) {
+      return res.send({ success: false, message: 'Missing President Password' });
+    }
+
+    const organization = await Organization.findById(organizationId);
+    if (!organization) {
+      return res.send({ success: false, message: 'Organization not found' });
+    }
+
+    if (String(organization.authorityRef) !== String(req.body.userId) || organization.authorityType !== 'dean') {
+      return res.send({ success: false, message: 'You can only register presidents for your organizations' });
+    }
+
+    const existingPresident = await User.findOne({ email: presidentEmail.trim().toLowerCase() });
+    if (existingPresident) {
+      return res.send({ success: false, message: 'President email already exists' });
+    }
+
+    console.log(presidentPassword);
+
+    const hashedPassword = await hashPassword(presidentPassword);
+
+    const president = new User({
+      fullName: presidentName.trim(),
+      email: presidentEmail.trim().toLowerCase(),
+      password: hashedPassword,
+      adminProfile: {
+        role: 'president',
+        organization: organization._id,
+        faculty: organization.faculty || null,
+      },
+    });
+
+    const savedPresident = await president.save();
+
+    organization.presidentName = savedPresident.fullName;
+    await organization.save();
+
+    return res.send({
+      success: true,
+      message: {
+        id: savedPresident._id,
+        fullName: savedPresident.fullName,
+        email: savedPresident.email,
+        role: 'president',
+      },
+    });
+  } catch (error) {
+    return res.send({ success: false, message: `Error : ${error.message}` });
+  }
+};
+
 module.exports = {
   createAdvisor,
   createDean,
@@ -506,6 +585,7 @@ module.exports = {
   createOrganization,
   createUniversityRole,
   createVenue,
+  createPresidentRegistration,
   getAdminCatalog,
   getVenues,
 };

@@ -13,6 +13,7 @@ const eventSchema = new Schema(
     expectedAttendees: { type: Number, required: true, min: 1 },
     venueName: { type: String, required: true, trim: true },
     venue: { type: Schema.Types.ObjectId, ref: 'Venue', default: null },
+    faculty: { type: Schema.Types.ObjectId, ref: 'Faculty', default: null },
     organization: { type: Schema.Types.ObjectId, ref: 'Organization', required: true },
     project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
     president: { type: Schema.Types.ObjectId, ref: 'User', required: true },

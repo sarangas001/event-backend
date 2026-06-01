@@ -93,8 +93,6 @@ const login = async (req, res) => {
         //Check the email , password are exist and valid or not
         if (!email) {
             return res.send({ success: false, message: "Missing Email" });
-        } else if (!validator.isEmail(email)) {
-            return res.send({ success: false, message: "Invalid Email" });
         }
 
         if (!password) {

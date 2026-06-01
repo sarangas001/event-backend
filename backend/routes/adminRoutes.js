@@ -13,5 +13,6 @@ router.post('/venue', userAuth, adminController.createVenue);
 router.post('/advisor', userAuth, adminController.createAdvisor);
 router.post('/organization', userAuth, adminController.createOrganization);
 router.post('/university-role', userAuth, adminController.createUniversityRole);
+router.post('/register-president', userAuth, adminController.createPresidentRegistration);
 
 module.exports = router;

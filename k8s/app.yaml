@@ -37,7 +37,8 @@ spec:
           value: "536637513617862"
         - name: CLOUD_API_SECRET
           value: "OC0wbmxROElLVTFqOG9WZzlMc3ZMcW9FQThR"
-
+        - name: FRONTEND_BASE_URL
+          value: "https://event-frontend-eight-gamma.vercel.app"
         ports:
         - containerPort: 3001
 

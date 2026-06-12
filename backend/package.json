@@ -6,7 +6,8 @@
     "start": "node server.js",
     "test": "jest --runInBand --verbose",
     "test:workflow": "jest tests/workflow --runInBand --verbose",
-    "dev": "nodemon run dev"
+    "dev": "nodemon run dev",
+    "test:email": "node tests/email/sendEmailTest.js"
   },
   "author": "",
   "license": "ISC",

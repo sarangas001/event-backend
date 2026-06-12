@@ -5,6 +5,7 @@ const Organization = require('../models/Organization');
 const Venue = require('../models/Venue');
 const WorkFlow = require('../models/WorkFlow');
 const User = require('../models/User');
+const { sendApprovalRequestEmail } = require('../utils/emailService');
 
 const afterSixPm = (startTime, endTime) => {
   const candidate = endTime || startTime;
@@ -270,6 +271,15 @@ const createEvent = async (req, res) => {
 
     const savedEvent = await event.save();
     const workflow = await createWorkflow({ event: savedEvent, initialRole, requiresSecurity });
+
+    // Send approval request email
+    const reviewer = await User.findOne({ _id: workflow.currentAssignee });
+
+    const sendEmail = await sendApprovalRequestEmail(reviewer.email, workflow.currentRole, savedEvent.title, savedEvent, `${process.env.FRONTEND_BASE_URL}/approval-dashboard`);
+
+    if(!sendEmail || sendEmail.success === false) {
+      console.error('Failed to send approval request email:', sendEmail?.message || 'Unknown error');
+    }
 
     return res.send({
       success: true,

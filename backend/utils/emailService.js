@@ -104,7 +104,7 @@ const sendApprovalRequestEmail = async (
               
               <p>Please review the event details and provide your approval or feedback.</p>
               
-              <a href="${reviewLink}" class="button">Review & Approve Event</a>
+              <a href="${reviewLink}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;" class="button">Review & Approve Event</a>
               
               <div class="footer">
                 <p>If you have any questions, please contact the events team.</p>

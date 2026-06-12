@@ -275,7 +275,7 @@ const createEvent = async (req, res) => {
     // Send approval request email
     const reviewer = await User.findOne({ _id: workflow.currentAssignee });
 
-    const sendEmail = await sendApprovalRequestEmail(reviewer.email, workflow.currentRole, savedEvent.title, savedEvent, `${process.env.FRONTEND_BASE_URL}/approval-dashboard`);
+    const sendEmail = await sendApprovalRequestEmail(reviewer.email, workflow.currentRole, savedEvent.title, savedEvent, `${process.env.FRONTEND_BASE_URL}`);
 
     if(!sendEmail || sendEmail.success === false) {
       console.error('Failed to send approval request email:', sendEmail?.message || 'Unknown error');

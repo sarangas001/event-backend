@@ -288,7 +288,7 @@ const updateWorkflowStatus = async (req, res) => {
       await event.save();
       await workflow.save();
       const president = await User.findById(event.president);
-      await sendRejectionEmail(president.email, president.fullName, event.title, event, comment, `${process.env.FRONTEND_BASE_URL}/my-events`);
+      await sendRejectionEmail(president.email, president.fullName, event.title, event, comment, `${process.env.FRONTEND_BASE_URL}`);
       return res.send({ success: true, message: workflow });
     }
 
@@ -327,7 +327,7 @@ const updateWorkflowStatus = async (req, res) => {
     await workflow.save();
 
     const reviewerEmail = await User.findById(workflow.currentAssignee);
-    await sendApprovalRequestEmail(reviewerEmail.email, workflow.currentRole, event.title, event, `${process.env.FRONTEND_BASE_URL}/approval-dashboard`);
+    await sendApprovalRequestEmail(reviewerEmail.email, workflow.currentRole, event.title, event, `${process.env.FRONTEND_BASE_URL}`);
 
     return res.send({ success: true, message: workflow });
   } catch (error) {

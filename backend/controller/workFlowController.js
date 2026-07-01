@@ -208,9 +208,36 @@ const getWorkflowQueue = async (req, res) => {
       return res.send({ success: false, message: 'Invalid user' });
     }
 
+    const mode = String(req.query?.mode || 'pending').toLowerCase();
+    const userRole = user.adminProfile?.role;
+
+    if (mode === 'history') {
+      const workflows = await WorkFlow.find({
+        history: {
+          $elemMatch: {
+            actor: user._id,
+            role: userRole,
+            decision: { $in: ['approved', 'rejected'] },
+          },
+        },
+      })
+        .sort({ updatedAt: -1 })
+        .populate({
+          path: 'event',
+          populate: [
+            { path: 'organization' },
+            { path: 'project' },
+            { path: 'venue' },
+            { path: 'president' },
+          ],
+        });
+
+      return res.send({ success: true, message: workflows });
+    }
+
     const workflows = await WorkFlow.find({
       status: 'pending',
-      currentRole: user.adminProfile?.role,
+      currentRole: userRole,
     }).populate({
       path: 'event',
       populate: [

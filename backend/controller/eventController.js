@@ -7,6 +7,84 @@ const WorkFlow = require('../models/WorkFlow');
 const User = require('../models/User');
 const { sendApprovalRequestEmail } = require('../utils/emailService');
 
+const parseTimeToMinutes = (timeValue) => {
+  const [hour, minute] = String(timeValue || '').split(':').map(Number);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+  return (hour * 60) + minute;
+};
+
+const hasTimeOverlap = (candidateStart, candidateEnd, existingStart, existingEnd) => {
+  const candidateStartMinutes = parseTimeToMinutes(candidateStart);
+  const candidateEndMinutes = parseTimeToMinutes(candidateEnd);
+  const existingStartMinutes = parseTimeToMinutes(existingStart);
+  const existingEndMinutes = parseTimeToMinutes(existingEnd);
+
+  if (
+    candidateStartMinutes === null ||
+    candidateEndMinutes === null ||
+    existingStartMinutes === null ||
+    existingEndMinutes === null
+  ) {
+    return false;
+  }
+
+  return candidateStartMinutes < existingEndMinutes && candidateEndMinutes > existingStartMinutes;
+};
+
+const findConflictingEvent = async ({
+  eventDate,
+  venueId,
+  venueName,
+  startTime,
+  endTime,
+  excludedEventId = null,
+}) => {
+  const normalizedVenueName = String(venueName || '').trim();
+
+  const candidateQuery = {
+    eventDate: String(eventDate || '').trim(),
+    status: { $in: ['pending', 'approved'] },
+    ...(excludedEventId ? { _id: { $ne: excludedEventId } } : {}),
+    ...(venueId
+      ? { $or: [{ venue: venueId }, { venueName: normalizedVenueName }] }
+      : { venueName: normalizedVenueName }),
+  };
+
+  const candidateEvents = await Event.find(candidateQuery)
+    .select('startTime endTime title')
+    .lean();
+
+  return candidateEvents.find((existingEvent) =>
+    hasTimeOverlap(startTime, endTime, existingEvent.startTime, existingEvent.endTime)
+  ) || null;
+};
+
+const findDuplicateEventSubmission = async ({
+  president,
+  project,
+  title,
+  eventDate,
+  startTime,
+  endTime,
+  venueId,
+  venueName,
+}) => {
+  const normalizedVenueName = String(venueName || '').trim();
+
+  return Event.findOne({
+    president,
+    project,
+    title: String(title || '').trim(),
+    eventDate: String(eventDate || '').trim(),
+    startTime: String(startTime || '').trim(),
+    endTime: String(endTime || '').trim(),
+    status: { $in: ['pending', 'approved', 'returned'] },
+    ...(venueId
+      ? { $or: [{ venue: venueId }, { venueName: normalizedVenueName }] }
+      : { venueName: normalizedVenueName }),
+  });
+};
+
 const afterSixPm = (startTime, endTime) => {
   const candidate = endTime || startTime;
   if (!candidate) return false;
@@ -153,6 +231,7 @@ const categoryRole = (category) => {
 
 const createWorkflow = async ({ event, initialRole, requiresSecurity }) => {
   const project = await Project.findById(event.project);
+
   const workflow = new WorkFlow({
     event: event._id,
     currentStage: 'organizationAuthority',
@@ -173,6 +252,8 @@ const createWorkflow = async ({ event, initialRole, requiresSecurity }) => {
 
   return workflow.save();
 };
+
+
 
 const createEvent = async (req, res) => {
   try {
@@ -243,6 +324,37 @@ const createEvent = async (req, res) => {
     }
 
     const eventVenueName = venue?.venueName || venueName.trim();
+
+    const duplicateEvent = await findDuplicateEventSubmission({
+      president: user._id,
+      project: project._id,
+      title,
+      eventDate,
+      startTime,
+      endTime,
+      venueId: venue?._id || null,
+      venueName: eventVenueName,
+    });
+
+    if (duplicateEvent) {
+      return res.send({ success: false, message: 'Duplicate event submission detected' });
+    }
+
+    const conflictingEvent = await findConflictingEvent({
+      eventDate,
+      venueId: venue?._id || null,
+      venueName: eventVenueName,
+      startTime,
+      endTime,
+    });
+
+    if (conflictingEvent) {
+      return res.send({
+        success: false,
+        message: `Venue is already booked for ${conflictingEvent.title} during this time`,
+      });
+    }
+
     const requiresSecurity = afterSixPm(startTime, endTime);
     const initialRole = project.organizationAuthorityType === 'dean' ? 'dean' : 'advisor';
 
@@ -272,13 +384,22 @@ const createEvent = async (req, res) => {
     const savedEvent = await event.save();
     const workflow = await createWorkflow({ event: savedEvent, initialRole, requiresSecurity });
 
-    // Send approval request email
-    const reviewer = await User.findOne({ _id: workflow.currentAssignee });
+    const reviewer = workflow.currentAssignee ? await User.findById(workflow.currentAssignee) : null;
 
-    const sendEmail = await sendApprovalRequestEmail(reviewer.email, workflow.currentRole, savedEvent.title, savedEvent, `${process.env.FRONTEND_BASE_URL}`);
+    if (reviewer?.email) {
+      const sendEmail = await sendApprovalRequestEmail(
+        reviewer.email,
+        workflow.currentRole,
+        savedEvent.title,
+        savedEvent,
+        `${process.env.FRONTEND_BASE_URL}/approval-dashboard`
+      );
 
-    if(!sendEmail || sendEmail.success === false) {
-      console.error('Failed to send approval request email:', sendEmail?.message || 'Unknown error');
+      if (!sendEmail || sendEmail.success === false) {
+        console.error('Failed to send approval request email:', sendEmail?.message || 'Unknown error');
+      }
+    } else {
+      console.warn('Workflow created without a resolvable reviewer email');
     }
 
     return res.send({
@@ -430,6 +551,23 @@ const updateReturnedEvent = async (req, res) => {
     }
 
     const eventVenueName = venue?.venueName || venueName || event.venueName;
+
+    const conflictingEvent = await findConflictingEvent({
+      eventDate: eventDate?.trim() || event.eventDate,
+      venueId: venue?._id || event.venue || null,
+      venueName: eventVenueName,
+      startTime: startTime?.trim() || event.startTime,
+      endTime: endTime?.trim() || event.endTime,
+      excludedEventId: event._id,
+    });
+
+    if (conflictingEvent) {
+      return res.send({
+        success: false,
+        message: `Venue is already booked for ${conflictingEvent.title} during this time`,
+      });
+    }
+
     const requiresSecurity = afterSixPm(startTime || event.startTime, endTime || event.endTime);
     const project = await Project.findById(event.project);
     const initialRole = project?.organizationAuthorityType === 'dean' ? 'dean' : 'advisor';

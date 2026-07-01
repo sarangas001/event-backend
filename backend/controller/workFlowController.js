@@ -3,7 +3,7 @@ const Project = require('../models/Project');
 const User = require('../models/User');
 const Venue = require('../models/Venue');
 const WorkFlow = require('../models/WorkFlow');
-const { sendApprovalRequestEmail, sendFinalApprovalEmail, sendRejectionEmail } = require('../utils/emailService');
+const { sendApprovalRequestEmail, sendRejectionEmail, sendFinalApprovalEmail } = require('../utils/emailService');
 const { categoryRole, afterSixPm } = require('./eventController');
 
 const formatPopulatedUser = (user) => {
@@ -288,7 +288,7 @@ const updateWorkflowStatus = async (req, res) => {
       await event.save();
       await workflow.save();
       const president = await User.findById(event.president);
-      await sendRejectionEmail(president.email, president.fullName, event.title, event, comment, `${process.env.FRONTEND_BASE_URL}`);
+      await sendRejectionEmail(president.email, president.fullName, event.title, event, comment, `${process.env.FRONTEND_BASE_URL}/my-events`);
       return res.send({ success: true, message: workflow });
     }
 
@@ -299,7 +299,7 @@ const updateWorkflowStatus = async (req, res) => {
     workflow.currentStage = next.stage;
     workflow.currentRole = nextRole || workflow.currentRole;
     workflow.currentAssignee = nextAssignee;
-
+    
     if (next.stage === 'approved') {
       workflow.status = 'approved';
       workflow.finalApprovedAt = new Date();
@@ -308,15 +308,21 @@ const updateWorkflowStatus = async (req, res) => {
       event.approvalRole = 'welfareOfficer';
       event.publicVisible = true;
       event.approvedAt = new Date();
+      const reviewer = workflow.currentAssignee ? await User.findById(workflow.currentAssignee) : null;
+      const president = await User.findById(event.president);
+      const reviewerName = reviewer?.fullName || 'Welfare Officer';
+
+      if (president?.email) {
+        await sendFinalApprovalEmail(president.email, reviewerName, event.title, event, `${process.env.FRONTEND_BASE_URL}`);
+      }
       await event.save();
+      
     } else if (next.stage === 'securityUpload') {
       workflow.currentRole = 'president';
       workflow.currentAssignee = event.president;
       event.approvalStage = 'securityUpload';
       event.approvalRole = 'president';
-      const reviewer = await User.findById(workflow.currentAssignee);
-      const president= await User.findById(event.president);
-      await sendFinalApprovalEmail(president.email, reviewer.fullName, event.title, event, `${process.env.FRONTEND_BASE_URL}`);
+      
       await event.save();
     } else {
       event.approvalStage = next.stage;
@@ -326,8 +332,18 @@ const updateWorkflowStatus = async (req, res) => {
 
     await workflow.save();
 
-    const reviewerEmail = await User.findById(workflow.currentAssignee);
-    await sendApprovalRequestEmail(reviewerEmail.email, workflow.currentRole, event.title, event, `${process.env.FRONTEND_BASE_URL}`);
+    if (next.stage !== 'approved') {
+      const reviewerEmail = workflow.currentAssignee ? await User.findById(workflow.currentAssignee) : null;
+      if (reviewerEmail?.email) {
+        await sendApprovalRequestEmail(
+          reviewerEmail.email,
+          workflow.currentRole,
+          event.title,
+          event,
+          `${process.env.FRONTEND_BASE_URL}/approval-dashboard`
+        );
+      }
+    }
 
     return res.send({ success: true, message: workflow });
   } catch (error) {

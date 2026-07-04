@@ -97,6 +97,10 @@ const resolveCurrentAssignee = async (event, workflow, currentStage) => {
     return project?.organizationAuthorityRef || null;
   }
 
+  if (currentStage === 'finalOrganizationAuthority') {
+    return project?.organizationAuthorityRef || null;
+  }
+
   if (currentStage === 'welfareOfficer') {
     return getSingleRoleUser('welfareOfficer').then((user) => user?._id || null);
   }
@@ -150,7 +154,7 @@ const getNextStage = async (event, workflow) => {
       if (workflow.requiresSecurity) {
         return { stage: 'securityUpload' };
       }
-      return { stage: 'proctor' };
+      return { stage: 'finalOrganizationAuthority' };
     case 'venueOwner':
       if (categoryTarget) {
         return { stage: 'categoryCheck' };
@@ -158,13 +162,15 @@ const getNextStage = async (event, workflow) => {
       if (workflow.requiresSecurity) {
         return { stage: 'securityUpload' };
       }
-      return { stage: 'proctor' };
+      return { stage: 'finalOrganizationAuthority' };
     case 'categoryCheck':
       if (workflow.requiresSecurity) {
         return { stage: 'securityUpload' };
       }
-      return { stage: 'proctor' };
+      return { stage: 'finalOrganizationAuthority' };
     case 'securityUpload':
+      return { stage: 'finalOrganizationAuthority' };
+    case 'finalOrganizationAuthority':
       return { stage: 'proctor' };
     case 'proctor':
       return { stage: 'viceChancellor' };
@@ -182,6 +188,11 @@ const roleForStage = async (event, stage) => {
   const categoryTarget = categoryRole(event.category);
 
   if (stage === 'organizationAuthority') {
+    const project = await Project.findById(event.project);
+    return project?.organizationAuthorityType || 'advisor';
+  }
+
+  if (stage === 'finalOrganizationAuthority') {
     const project = await Project.findById(event.project);
     return project?.organizationAuthorityType || 'advisor';
   }
@@ -414,17 +425,29 @@ const submitSecurityProof = async (req, res) => {
       actor: user._id,
     });
 
-    const nextAssignee = await resolveCurrentAssignee(event, workflow, 'proctor');
-    workflow.currentStage = 'proctor';
-    workflow.currentRole = 'proctor';
+    const nextAssignee = await resolveCurrentAssignee(event, workflow, 'finalOrganizationAuthority');
+    const nextRole = await roleForStage(event, 'finalOrganizationAuthority');
+    workflow.currentStage = 'finalOrganizationAuthority';
+    workflow.currentRole = nextRole || workflow.currentRole;
     workflow.currentAssignee = nextAssignee;
     await workflow.save();
 
     event.securityImageUrl = imageUrl.trim();
     event.securityUploadedAt = new Date();
-    event.approvalStage = 'proctor';
-    event.approvalRole = 'proctor';
+    event.approvalStage = 'finalOrganizationAuthority';
+    event.approvalRole = nextRole || event.approvalRole;
     await event.save();
+
+    const reviewer = nextAssignee ? await User.findById(nextAssignee) : null;
+    if (reviewer?.email) {
+      await sendApprovalRequestEmail(
+        reviewer.email,
+        reviewer.fullName || 'Reviewer',
+        event.title,
+        event,
+        process.env.FRONTEND_BASE_URL + "/approval-dashboard"
+      );
+    }
 
     return res.send({ success: true, message: workflow });
   } catch (error) {

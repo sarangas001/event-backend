@@ -22,6 +22,7 @@ const formatRole = (role) => {
     venueOwner: 'Venue Owner',
     categoryCheck: 'Category Check',
     securityUpload: 'Security Upload',
+    finalOrganizationAuthority: 'Final Organization Authority',
     proctor: 'Proctor',
     viceChancellor: 'Vice Chancellor',
     welfareFinal: 'Welfare Final',
@@ -104,7 +105,7 @@ const sendApprovalRequestEmail = async (
               
               <p>Please review the event details and provide your approval or feedback.</p>
               
-              <a href="${reviewLink}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;" class="button">Review & Approve Event</a>
+              <a href="${reviewLink}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Review & Approve Event</a>
               
               <div class="footer">
                 <p>If you have any questions, please contact the events team.</p>
@@ -144,7 +145,7 @@ University of Sri Jayewardenepura Events Team
     const mailOptions = {
       from: process.env.SMTP_FROM_EMAIL || process.env.SENDER_EMAIL || 'noreply@university.edu',
       to: reviewerEmail,
-      subject: `[Action Required] Event Approval Needed: ${eventTitle}`,
+      subject: `Event Approval Needed: ${eventTitle}`,
       text: textContent.trim(),
       html: htmlContent,
     };

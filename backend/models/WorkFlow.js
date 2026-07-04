@@ -25,6 +25,7 @@ const workFlowSchema = new Schema(
         'venueOwner',
         'categoryCheck',
         'securityUpload',
+        'finalOrganizationAuthority',
         'proctor',
         'viceChancellor',
         'welfareFinal',
